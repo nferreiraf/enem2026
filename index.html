@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ENEM Sync App</title>
+<title>ENEM Planner + Tracker</title>
 <style>
 body{margin:0;font-family:Arial;background:linear-gradient(135deg,#1e1b4b,#3b82f6);color:white}
 header{text-align:center;padding:20px;font-size:22px;font-weight:bold}
@@ -11,28 +11,35 @@ header{text-align:center;padding:20px;font-size:22px;font-weight:bold}
 .card{background:rgba(255,255,255,0.1);border-radius:15px;padding:15px;flex:1 1 320px}
 input,textarea,select{width:100%;margin:5px 0;padding:8px;border:none;border-radius:8px}
 button{background:#7c3aed;color:white;border:none;padding:10px;border-radius:10px;cursor:pointer;margin-top:5px}
+table{width:100%;border-collapse:collapse}
+th,td{border:1px solid rgba(255,255,255,0.2);padding:6px;text-align:center}
 .lista{max-height:200px;overflow:auto;font-size:14px}
+@media(max-width:600px){header{font-size:18px}}
 </style>
 </head>
 <body>
-<header>☁️ ENEM Sync (Agatha & Lohayne)</header>
-
-<!-- FIREBASE -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<header>💜 ENEM Planner + Tracker (Agatha & Lohayne)</header>
 
 <script>
-// CONFIG FIREBASE (VOCÊ VAI TROCAR)
-const firebaseConfig = {
-  apiKey: "SUA_API_KEY",
-  authDomain: "SEU_APP.firebaseapp.com",
-  projectId: "SEU_APP",
-};
+// ====== PLANNER (salvar rotina) ======
+function salvarPlanner(){
+  const dados = [];
+  document.querySelectorAll('.planner input, .planner select, .planner textarea').forEach((el,i)=>{
+    dados.push(el.value);
+  });
+  localStorage.setItem('planner', JSON.stringify(dados));
+}
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+function carregarPlanner(){
+  const dados = JSON.parse(localStorage.getItem('planner')) || [];
+  document.querySelectorAll('.planner input, .planner select, .planner textarea').forEach((el,i)=>{
+    el.value = dados[i] || '';
+  });
+}
 
-// SALVAR SIMULADO ONLINE
+// ====== TRACKER ======
+let historico = JSON.parse(localStorage.getItem("historico")) || [];
+
 function salvarSimulado(){
   let nome = document.getElementById("aluno").value;
   let nota = document.getElementById("nota").value;
@@ -40,59 +47,106 @@ function salvarSimulado(){
   let acertos = document.getElementById("acertos").value;
   let data = new Date().toLocaleDateString();
 
-  db.collection("simulados").add({nome,nota,red,acertos,data});
+  historico.push({nome,nota,red,acertos,data});
+  localStorage.setItem("historico", JSON.stringify(historico));
+
+  renderizar(); ranking();
 }
 
-// CARREGAR EM TEMPO REAL
-function carregar(){
-  db.collection("simulados").onSnapshot(snapshot=>{
-    let lista = document.getElementById("lista");
-    lista.innerHTML="";
-
-    let agatha=[], lohayne=[];
-
-    snapshot.forEach(doc=>{
-      let r = doc.data();
-
-      lista.innerHTML += `<div>
-      <b>${r.nome}</b> (${r.data})<br>
-      Nota: ${r.nota} | Red: ${r.red} | Acertos: ${r.acertos}
-      </div><hr>`;
-
-      if(r.nome=="Agatha") agatha.push(Number(r.nota));
-      if(r.nome=="Lohayne") lohayne.push(Number(r.nota));
-    });
-
-    let mediaA = agatha.reduce((a,b)=>a+b,0)/(agatha.length||1);
-    let mediaL = lohayne.reduce((a,b)=>a+b,0)/(lohayne.length||1);
-
-    document.getElementById("ranking").innerHTML = `🏆 Ranking<br>Agatha: ${mediaA.toFixed(1)}<br>Lohayne: ${mediaL.toFixed(1)}`;
+function renderizar(){
+  let lista = document.getElementById("lista");
+  lista.innerHTML = "";
+  historico.forEach(r=>{
+    lista.innerHTML += `<div style="border-bottom:1px solid rgba(255,255,255,0.2);padding:5px">
+    <b>${r.nome}</b> - ${r.data}<br>
+    Nota: ${r.nota} | Red: ${r.red} | Acertos: ${r.acertos}
+    </div>`;
   });
 }
 
-window.onload = carregar;
+function ranking(){
+  let agatha = historico.filter(r=>r.nome=="Agatha");
+  let lohayne = historico.filter(r=>r.nome=="Lohayne");
+
+  let mediaA = agatha.reduce((a,b)=>a+Number(b.nota||0),0)/(agatha.length||1);
+  let mediaL = lohayne.reduce((a,b)=>a+Number(b.nota||0),0)/(lohayne.length||1);
+
+  document.getElementById("ranking").innerHTML = `🏆 Ranking<br>Agatha: ${mediaA.toFixed(1)}<br>Lohayne: ${mediaL.toFixed(1)}`;
+}
+
+function gerarRelatorio(){
+  let texto = "📊 RELATÓRIO ENEM\n\n";
+  historico.slice(-5).forEach(r=>{
+    texto += `${r.nome} (${r.data})\nNota: ${r.nota} | Red: ${r.red} | Acertos: ${r.acertos}\n\n`;
+  });
+  let url = "https://wa.me/?text="+encodeURIComponent(texto);
+  window.open(url,'_blank');
+}
+
+window.onload = ()=>{carregarPlanner(); renderizar(); ranking();}
 </script>
 
+<!-- ====== PLANNER ====== -->
+<div class="container planner">
+
+<div class="card">
+<h3>📅 Agatha</h3>
+<table>
+<tr><th>Dia</th><th>Matéria</th><th>Horas</th></tr>
+<tr><td>Seg</td><td><select><option>Biologia</option><option>Química</option><option>Física</option><option>Matemática</option><option>Português</option><option>Inglês</option><option>História</option><option>Geografia</option><option>Sociologia</option><option>Filosofia</option></select></td><td><input type="number"></td></tr>
+<tr><td>Ter</td><td><select><option>Português</option><option>Redação</option><option>Biologia</option><option>Química</option><option>Física</option><option>Matemática</option></select></td><td><input type="number"></td></tr>
+<tr><td>Qua</td><td><select><option>Química</option><option>Física</option><option>Matemática</option><option>Biologia</option></select></td><td><input type="number"></td></tr>
+<tr><td>Qui</td><td><select><option>Matemática</option><option>Física</option><option>Química</option></select></td><td><input type="number"></td></tr>
+<tr><td>Sex</td><td><select><option>Redação</option><option>Português</option></select></td><td><input type="number"></td></tr>
+<tr><td>Sáb</td><td>Simulado</td><td><input placeholder="nota"></td></tr>
+</table>
+<textarea placeholder="Anotações"></textarea>
+<button onclick="salvarPlanner()">Salvar Semana</button>
+</div>
+
+<div class="card">
+<h3>📅 Lohayne</h3>
+<table>
+<tr><th>Dia</th><th>Matéria</th><th>Horas</th></tr>
+<tr><td>Seg</td><td><select><option>Biologia</option><option>Química</option><option>Física</option><option>Matemática</option><option>Português</option></select></td><td><input type="number"></td></tr>
+<tr><td>Ter</td><td><select><option>Português</option><option>Redação</option><option>Biologia</option></select></td><td><input type="number"></td></tr>
+<tr><td>Qua</td><td><select><option>Química</option><option>Física</option></select></td><td><input type="number"></td></tr>
+<tr><td>Qui</td><td><select><option>Matemática</option><option>Física</option></select></td><td><input type="number"></td></tr>
+<tr><td>Sex</td><td><select><option>Redação</option><option>Português</option></select></td><td><input type="number"></td></tr>
+<tr><td>Sáb</td><td>Simulado</td><td><input placeholder="nota"></td></tr>
+</table>
+<textarea placeholder="Anotações"></textarea>
+<button onclick="salvarPlanner()">Salvar Semana</button>
+</div>
+
+</div>
+
+<!-- ====== TRACKER ====== -->
 <div class="container">
 <div class="card">
-<h3>Registrar Simulado</h3>
+<h3>📊 Registrar Simulado</h3>
 <select id="aluno"><option>Agatha</option><option>Lohayne</option></select>
 <input id="nota" placeholder="Nota">
 <input id="redacao" placeholder="Redação">
 <input id="acertos" placeholder="Acertos">
-<button onclick="salvarSimulado()">Salvar</button>
+<button onclick="salvarSimulado()">Salvar Resultado</button>
 </div>
 
 <div class="card">
-<h3>📜 Histórico (tempo real)</h3>
+<h3>📜 Histórico</h3>
 <div id="lista" class="lista"></div>
 </div>
 </div>
 
 <div class="container">
 <div class="card">
-<h3>🏆 Ranking ao vivo</h3>
+<h3>🏆 Ranking</h3>
 <div id="ranking"></div>
+</div>
+
+<div class="card">
+<h3>📤 Enviar Relatório</h3>
+<button onclick="gerarRelatorio()">Enviar WhatsApp</button>
 </div>
 </div>
 
