@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ENEM Sync App</title>
+<style>
+body{margin:0;font-family:Arial;background:linear-gradient(135deg,#1e1b4b,#3b82f6);color:white}
+header{text-align:center;padding:20px;font-size:22px;font-weight:bold}
+.container{display:flex;flex-wrap:wrap;gap:20px;padding:15px}
+.card{background:rgba(255,255,255,0.1);border-radius:15px;padding:15px;flex:1 1 320px}
+input,textarea,select{width:100%;margin:5px 0;padding:8px;border:none;border-radius:8px}
+button{background:#7c3aed;color:white;border:none;padding:10px;border-radius:10px;cursor:pointer;margin-top:5px}
+.lista{max-height:200px;overflow:auto;font-size:14px}
+</style>
+</head>
+<body>
+<header>☁️ ENEM Sync (Agatha & Lohayne)</header>
+
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<script>
+// CONFIG FIREBASE (VOCÊ VAI TROCAR)
+const firebaseConfig = {
+  apiKey: "SUA_API_KEY",
+  authDomain: "SEU_APP.firebaseapp.com",
+  projectId: "SEU_APP",
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// SALVAR SIMULADO ONLINE
+function salvarSimulado(){
+  let nome = document.getElementById("aluno").value;
+  let nota = document.getElementById("nota").value;
+  let red = document.getElementById("redacao").value;
+  let acertos = document.getElementById("acertos").value;
+  let data = new Date().toLocaleDateString();
+
+  db.collection("simulados").add({nome,nota,red,acertos,data});
+}
+
+// CARREGAR EM TEMPO REAL
+function carregar(){
+  db.collection("simulados").onSnapshot(snapshot=>{
+    let lista = document.getElementById("lista");
+    lista.innerHTML="";
+
+    let agatha=[], lohayne=[];
+
+    snapshot.forEach(doc=>{
+      let r = doc.data();
+
+      lista.innerHTML += `<div>
+      <b>${r.nome}</b> (${r.data})<br>
+      Nota: ${r.nota} | Red: ${r.red} | Acertos: ${r.acertos}
+      </div><hr>`;
+
+      if(r.nome=="Agatha") agatha.push(Number(r.nota));
+      if(r.nome=="Lohayne") lohayne.push(Number(r.nota));
+    });
+
+    let mediaA = agatha.reduce((a,b)=>a+b,0)/(agatha.length||1);
+    let mediaL = lohayne.reduce((a,b)=>a+b,0)/(lohayne.length||1);
+
+    document.getElementById("ranking").innerHTML = `🏆 Ranking<br>Agatha: ${mediaA.toFixed(1)}<br>Lohayne: ${mediaL.toFixed(1)}`;
+  });
+}
+
+window.onload = carregar;
+</script>
+
+<div class="container">
+<div class="card">
+<h3>Registrar Simulado</h3>
+<select id="aluno"><option>Agatha</option><option>Lohayne</option></select>
+<input id="nota" placeholder="Nota">
+<input id="redacao" placeholder="Redação">
+<input id="acertos" placeholder="Acertos">
+<button onclick="salvarSimulado()">Salvar</button>
+</div>
+
+<div class="card">
+<h3>📜 Histórico (tempo real)</h3>
+<div id="lista" class="lista"></div>
+</div>
+</div>
+
+<div class="container">
+<div class="card">
+<h3>🏆 Ranking ao vivo</h3>
+<div id="ranking"></div>
+</div>
+</div>
+
+</body>
+</html>
